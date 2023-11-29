@@ -1,9 +1,9 @@
 {
-	"name": "typescript-library",
-	"version": "0.0.2",
-	"description": "boilerplate for typescript libraries",
+	"name": "lexicodec",
+	"version": "0.0.1",
+	"description": "A library for lexicographical encoding.",
 	"repository": {
-		"url": "https://github.com/ccorcos/typescript-library"
+		"url": "https://github.com/ccorcos/lexicodec"
 	},
 	"main": "index.js",
 	"scripts": {
@@ -13,7 +13,21 @@
 		"test": "mocha -r tsx './src/**/*.test.ts' './src/**/*.test.tsx' --verbose",
 		"release": "./release.sh"
 	},
-	"keywords": [],
+	"keywords": [
+		"lexicographic",
+		"lexicographical",
+		"codec",
+		"encode",
+		"decode",
+		"encoding",
+		"decoding",
+		"alphabetical",
+		"order",
+		"sorted",
+		"foundationdb",
+		"tuple",
+		"dynamodb"
+	],
 	"author": "Chet Corcos <ccorcos@gmail.com>",
 	"license": "MIT",
 	"devDependencies": {

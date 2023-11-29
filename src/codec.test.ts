@@ -1,6 +1,16 @@
 import { strict as assert } from "assert"
 import { describe, it } from "mocha"
-import { jsonCodec } from "./codec"
+import {
+	ArrayEncoding,
+	BooleanEncoding,
+	Codec,
+	Encoding,
+	NullEncoding,
+	NumberEncoding,
+	ObjectEncoding,
+	StringEncoding,
+	jsonCodec,
+} from "./codec"
 import { compare } from "./compare"
 
 function toString(value: any) {
@@ -124,6 +134,54 @@ describe("jsonCodec", () => {
 			const b = sample()
 			test(a.tuple, b.tuple, compare(a.rank, b.rank))
 		}
+	})
+})
+
+describe("README", () => {
+	it("jsonCodec", () => {
+		console.log(`
+jsonCodec.encode(null) // => ${JSON.stringify(jsonCodec.encode(null))}
+jsonCodec.encode(true) // => ${JSON.stringify(jsonCodec.encode(true))}
+jsonCodec.encode("hello world") // => ${JSON.stringify(
+			jsonCodec.encode("hello world")
+		)}
+jsonCodec.encode(10) // => ${JSON.stringify(jsonCodec.encode(10))}
+jsonCodec.encode(["chet", "corcos"]) // => ${JSON.stringify(
+			jsonCodec.encode(["chet", "corcos"])
+		)}
+jsonCodec.encode({date: "2020-03-10"}) // => ${JSON.stringify(
+			jsonCodec.encode({
+				date: "2020-03-10",
+			})
+		)}
+`)
+	})
+
+	it("DateEncoding", () => {
+		const DateEncoding: Encoding<Date> = {
+			match: (value: unknown) =>
+				typeof value === "object" &&
+				Object.getPrototypeOf(value) === Date.prototype,
+			encode: (value) => value.toISOString(),
+			decode: (value) => new Date(value),
+		}
+
+		const codec = new Codec({
+			b: NullEncoding,
+			c: ObjectEncoding,
+			d: ArrayEncoding,
+			e: NumberEncoding,
+			f: StringEncoding,
+			g: BooleanEncoding,
+			h: DateEncoding,
+		})
+
+		console.log(`
+codec.encode(new Date()) // => ${JSON.stringify(codec.encode(new Date()))}
+codec.encode(["created", new Date()]) // => ${JSON.stringify(
+			codec.encode(["created", new Date()])
+		)}
+`)
 	})
 })
 

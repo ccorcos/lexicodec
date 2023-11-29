@@ -6,45 +6,36 @@ import { compare } from "./compare"
 export type Encoding<T> = {
 	/** prefix is just one byte currently. */
 	match: (value: unknown) => boolean
-	prefix: string
 	encode: (value: T, encode: (value: any) => string) => string
 	decode: (value: string, decode: (value: string) => any) => T
 }
 
-// Prefixes are based on legacy implementation.
-// null < object < array < number < string < boolean
-
 export const NullEncoding: Encoding<null> = {
 	match: (value) => value === null,
-	prefix: "b",
 	encode: (value) => "",
 	decode: (value) => null,
 }
 
 export const BooleanEncoding: Encoding<boolean> = {
 	match: (value: unknown) => value === true || value === false,
-	prefix: "g",
 	encode: (value) => JSON.stringify(value),
 	decode: (value) => JSON.parse(value),
 }
 
 export const StringEncoding: Encoding<string> = {
 	match: (value: unknown) => typeof value === "string",
-	prefix: "f",
 	encode: (value) => value,
 	decode: (value) => value,
 }
 
 export const NumberEncoding: Encoding<number> = {
 	match: (value: unknown) => typeof value === "number",
-	prefix: "e",
 	encode: (value) => elen.encode(value),
 	decode: (value) => elen.decode(value),
 }
 
 export const ArrayEncoding: Encoding<any[]> = {
 	match: (value: unknown) => Array.isArray(value),
-	prefix: "d",
 	encode: (array, encode) =>
 		array
 			.map((value, i) => {
@@ -91,12 +82,11 @@ export const ArrayEncoding: Encoding<any[]> = {
 	},
 }
 
-export const ObjectEncoding: Encoding<object> = {
+export const ObjectLegacyEncoding: Encoding<object> = {
 	match: (value: unknown) =>
 		typeof value === "object" &&
 		value !== null &&
 		Object.getPrototypeOf(value) === Object.prototype,
-	prefix: "c",
 	encode: (value, encode) => {
 		const entries = Object.entries(value).sort(([k1], [k2]) => compare(k1, k2))
 		return ArrayEncoding.encode(entries, encode)
@@ -111,32 +101,80 @@ export const ObjectEncoding: Encoding<object> = {
 	},
 }
 
+function flatten<T>(array: T[][]): T[] {
+	const result: T[] = []
+	for (const inner of array) {
+		for (const item of inner) {
+			result.push(item)
+		}
+	}
+	return result
+}
+
+function chunk<T>(array: T[], size: number): T[][] {
+	const result: T[][] = []
+
+	for (let i = 0; i < array.length; i += size) {
+		const chunk = array.slice(i, i + size)
+		result.push(chunk)
+	}
+
+	return result
+}
+
+export const ObjectEncoding: Encoding<object> = {
+	match: (value: unknown) =>
+		typeof value === "object" &&
+		value !== null &&
+		Object.getPrototypeOf(value) === Object.prototype,
+	encode: (value, encode) => {
+		const entries = Object.entries(value).sort(([k1], [k2]) => compare(k1, k2))
+		const items = flatten(entries)
+		return ArrayEncoding.encode(items, encode)
+	},
+	decode: (value, decode) => {
+		const items = ArrayEncoding.decode(value, decode)
+		const entries = chunk(items, 2) as Array<[string, any]>
+		const obj = {}
+		for (const [key, value] of entries) {
+			obj[key] = value
+		}
+		return obj
+	},
+}
+
 export class Codec {
-	constructor(public encodings: Encoding<any>[]) {}
+	constructor(public encodings: { [prefixByte: string]: Encoding<any> }) {
+		for (const prefixByte in encodings)
+			if (prefixByte.length !== 1)
+				throw new Error(`Encoding prefix is not 1 byte: ${prefixByte}`)
+	}
 
 	encode = (value: any): string => {
-		for (const encoding of this.encodings) {
+		for (const [prefixByte, encoding] of Object.entries(this.encodings))
 			if (encoding.match(value))
-				return encoding.prefix + encoding.encode(value, this.encode)
-		}
+				return prefixByte + encoding.encode(value, this.encode)
+
 		throw new Error(`Missing encoding for value: ${value}`)
 	}
 
 	decode = (value: string): any => {
 		const prefix = value[0]
 		const rest = value.slice(1)
-		for (const encoding of this.encodings) {
-			if (encoding.prefix === prefix) return encoding.decode(rest, this.decode)
-		}
+		for (const [prefixByte, encoding] of Object.entries(this.encodings))
+			if (prefixByte === prefix) return encoding.decode(rest, this.decode)
+
 		throw new Error(`Missing encoding for value: ${value}`)
 	}
 }
 
-export const jsonCodec = new Codec([
-	NullEncoding,
-	BooleanEncoding,
-	StringEncoding,
-	NumberEncoding,
-	ArrayEncoding,
-	ObjectEncoding,
-])
+export const jsonCodec = new Codec({
+	// Prefixes are based on legacy implementation.
+	// null < object < array < number < string < boolean
+	b: NullEncoding,
+	c: ObjectEncoding,
+	d: ArrayEncoding,
+	e: NumberEncoding,
+	f: StringEncoding,
+	g: BooleanEncoding,
+})
