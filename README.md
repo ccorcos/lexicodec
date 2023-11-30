@@ -1,6 +1,8 @@
-# Lexicographical Encoding
+# Lexicographical Codec
 
 Lexicographcial encodings are very useful for indexing information in an ordered key-value store such as LevelDb, FoundationDb, or DynamoDb.
+
+## Why
 
 Existing ordered key-value storage options will only accept bytes as keys and it's non-trivial to convert a tuple into a byte-string that maintains a consistent order.
 
@@ -44,6 +46,7 @@ const DateEncoding: Encoding<Date> = {
 		Object.getPrototypeOf(value) === Date.prototype,
 	encode: (value) => value.toISOString(),
 	decode: (value) => new Date(value),
+	compare: (a, b) => (a > b ? 1 : b > a ? -1 : 0),
 }
 
 const codec = new Codec({
@@ -58,4 +61,10 @@ const codec = new Codec({
 
 codec.encode(new Date()) // => "h2023-11-29T18:44:54.942Z"
 codec.encode(["created", new Date()]) // => "dfcreated\u0000h2023-11-29T18:44:54.943Z\u0000"
+```
+
+Encodings also have a `compare` property so that you can compare values without having to serializing them. That way you can create in-memory abstractions that mimic the serialized behavior, useful for caching, etc.
+
+```ts
+codec.compare(["jon", "smith"], ["jonathan", "smith"]) // => -1
 ```

@@ -43,7 +43,16 @@ describe("jsonCodec", () => {
 				assert.deepStrictEqual(
 					compare(a, b),
 					compare(i, j),
-					`compareValue(${[
+					`compare(${[
+						toString(sortedValues[i]),
+						toString(sortedValues[j]),
+					].join(", ")}) === compare(${[toString(a), toString(b)].join(", ")})`
+				)
+
+				assert.deepStrictEqual(
+					jsonCodec.compare(sortedValues[i], sortedValues[j]),
+					compare(i, j),
+					`jsonCodec.compare(${[
 						toString(sortedValues[i]),
 						toString(sortedValues[j]),
 					].join(", ")}) === compare(${[toString(a), toString(b)].join(", ")})`
@@ -92,7 +101,15 @@ describe("jsonCodec", () => {
 			assert.deepStrictEqual(
 				compare(a, b),
 				result,
-				`compareTuple(${[toString(aTuple), toString(bTuple)].join(
+				`compare(${[toString(aTuple), toString(bTuple)].join(
+					", "
+				)}) === compare(${[toString(a), toString(b)].join(", ")})`
+			)
+
+			assert.deepStrictEqual(
+				jsonCodec.compare(aTuple, bTuple),
+				result,
+				`jsonCodec.compare(${[toString(aTuple), toString(bTuple)].join(
 					", "
 				)}) === compare(${[toString(a), toString(b)].join(", ")})`
 			)
@@ -164,6 +181,7 @@ jsonCodec.encode({date: "2020-03-10"}) // => ${JSON.stringify(
 				Object.getPrototypeOf(value) === Date.prototype,
 			encode: (value) => value.toISOString(),
 			decode: (value) => new Date(value),
+			compare: (a, b) => (a > b ? 1 : b > a ? -1 : 0),
 		}
 
 		const codec = new Codec({

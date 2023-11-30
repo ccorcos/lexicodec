@@ -4,34 +4,40 @@ import * as elen from "elen"
 import { compare } from "./compare"
 
 export type Encoding<T> = {
-	/** prefix is just one byte currently. */
+	/** Should this value use this encoding? */
 	match: (value: unknown) => boolean
 	encode: (value: T, encode: (value: any) => string) => string
 	decode: (value: string, decode: (value: string) => any) => T
+	/** This is for in-memory comparison without serializing. */
+	compare: (a: T, b: T, compare: (a: any, b: any) => -1 | 0 | 1) => -1 | 0 | 1
 }
 
 export const NullEncoding: Encoding<null> = {
 	match: (value) => value === null,
-	encode: (value) => "",
-	decode: (value) => null,
+	encode: () => "",
+	decode: () => null,
+	compare: () => 0,
 }
 
 export const BooleanEncoding: Encoding<boolean> = {
 	match: (value: unknown) => value === true || value === false,
 	encode: (value) => JSON.stringify(value),
 	decode: (value) => JSON.parse(value),
+	compare: compare,
 }
 
 export const StringEncoding: Encoding<string> = {
 	match: (value: unknown) => typeof value === "string",
 	encode: (value) => value,
 	decode: (value) => value,
+	compare: compare,
 }
 
 export const NumberEncoding: Encoding<number> = {
 	match: (value: unknown) => typeof value === "number",
 	encode: (value) => elen.encode(value),
 	decode: (value) => elen.decode(value),
+	compare: compare,
 }
 
 export const ArrayEncoding: Encoding<any[]> = {
@@ -80,24 +86,15 @@ export const ArrayEncoding: Encoding<any[]> = {
 			start = end + 1
 		}
 	},
-}
+	compare: (a, b, cmp) => {
+		const len = Math.min(a.length, b.length)
 
-export const ObjectLegacyEncoding: Encoding<object> = {
-	match: (value: unknown) =>
-		typeof value === "object" &&
-		value !== null &&
-		Object.getPrototypeOf(value) === Object.prototype,
-	encode: (value, encode) => {
-		const entries = Object.entries(value).sort(([k1], [k2]) => compare(k1, k2))
-		return ArrayEncoding.encode(entries, encode)
-	},
-	decode: (value, decode) => {
-		const entries: Array<[string, any]> = ArrayEncoding.decode(value, decode)
-		const obj = {}
-		for (const [key, value] of entries) {
-			obj[key] = value
+		for (let i = 0; i < len; i++) {
+			const dir = cmp(a[i], b[i])
+			if (dir !== 0) return dir
 		}
-		return obj
+
+		return compare(a.length, b.length)
 	},
 }
 
@@ -141,6 +138,42 @@ export const ObjectEncoding: Encoding<object> = {
 		}
 		return obj
 	},
+	compare: (a, b, cmp) => {
+		const ae = Object.entries(a).sort(([k1], [k2]) => compare(k1, k2))
+		const be = Object.entries(b).sort(([k1], [k2]) => compare(k1, k2))
+		const len = Math.min(ae.length, be.length)
+
+		for (let i = 0; i < len; i++) {
+			const [ak, av] = ae[i]
+			const [bk, bv] = be[i]
+			const dir = compare(ak, bk)
+			if (dir !== 0) return dir
+			const dir2 = cmp(av, bv)
+			if (dir2 !== 0) return dir2
+		}
+
+		return compare(ae.length, be.length)
+	},
+}
+
+export const ObjectLegacyEncoding: Encoding<object> = {
+	match: (value: unknown) =>
+		typeof value === "object" &&
+		value !== null &&
+		Object.getPrototypeOf(value) === Object.prototype,
+	encode: (value, encode) => {
+		const entries = Object.entries(value).sort(([k1], [k2]) => compare(k1, k2))
+		return ArrayEncoding.encode(entries, encode)
+	},
+	decode: (value, decode) => {
+		const entries: Array<[string, any]> = ArrayEncoding.decode(value, decode)
+		const obj = {}
+		for (const [key, value] of entries) {
+			obj[key] = value
+		}
+		return obj
+	},
+	compare: ObjectEncoding.compare,
 }
 
 export class Codec {
@@ -165,6 +198,23 @@ export class Codec {
 			if (prefixByte === prefix) return encoding.decode(rest, this.decode)
 
 		throw new Error(`Missing encoding for value: ${value}`)
+	}
+
+	compare = (a: any, b: any): -1 | 0 | 1 => {
+		let ae: [string, Encoding<any>] | undefined
+		let be: [string, Encoding<any>] | undefined
+		for (const [prefix, encoding] of Object.entries(this.encodings)) {
+			if (!ae && encoding.match(a)) ae = [prefix, encoding]
+			if (!be && encoding.match(b)) be = [prefix, encoding]
+			if (ae && be) break
+		}
+		if (!ae) throw new Error(`Missing encoding for value: ${a}`)
+		if (!be) throw new Error(`Missing encoding for value: ${b}`)
+
+		// Type prefix comparison.
+		if (ae[0] !== be[0]) return compare(ae[0], be[0])
+		// Value comparison.
+		return ae[1].compare(a, b, this.compare)
 	}
 }
 

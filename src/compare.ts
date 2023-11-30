@@ -1,7 +1,7 @@
-export function compare<K extends string | number | boolean>(
+export function compare<K extends string | number | boolean, Date>(
 	a: K,
 	b: K
-): number {
+): -1 | 0 | 1 {
 	if (a > b) {
 		return 1
 	}

@@ -10,7 +10,7 @@
 		"clean": "rm -rf build",
 		"build": "tsc",
 		"typecheck": "tsc --noEmit",
-		"test": "mocha -r tsx './src/**/*.test.ts' './src/**/*.test.tsx' --verbose",
+		"test": "mocha -r tsx './src/**/*.test.ts' --verbose",
 		"release": "./release.sh"
 	},
 	"keywords": [
