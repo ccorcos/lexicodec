@@ -176,6 +176,9 @@ export const ObjectLegacyEncoding: Encoding<object> = {
 	compare: ObjectEncoding.compare,
 }
 
+const MIN = Symbol("min")
+const MAX = Symbol("max")
+
 export class Codec {
 	constructor(public encodings: { [prefixByte: string]: Encoding<any> }) {
 		for (const prefixByte in encodings)
@@ -200,7 +203,18 @@ export class Codec {
 		throw new Error(`Missing encoding for value: ${value}`)
 	}
 
+	MIN = MIN
+	MAX = MAX
+	static MIN = MIN
+	static MAX = MAX
+
 	compare = (a: any, b: any): -1 | 0 | 1 => {
+		if (a === b) return 0
+		if (a === Codec.MIN) return -1
+		if (a === Codec.MAX) return 1
+		if (b === Codec.MIN) return 1
+		if (b === Codec.MAX) return -1
+
 		let ae: [string, Encoding<any>] | undefined
 		let be: [string, Encoding<any>] | undefined
 		for (const [prefix, encoding] of Object.entries(this.encodings)) {
