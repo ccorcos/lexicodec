@@ -1,6 +1,6 @@
 {
 	"name": "lexicodec",
-	"version": "0.0.4",
+	"version": "0.0.5",
 	"description": "A library for lexicographical encoding.",
 	"repository": {
 		"url": "https://github.com/ccorcos/lexicodec"
