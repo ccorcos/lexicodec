@@ -40,6 +40,8 @@ export const NumberEncoding: Encoding<number> = {
 	compare: compare,
 }
 
+// Databases like LMDB avoid escaping null bytes by requiring all values
+// don't contain null bytes. But this means you can't have nested tuples.
 export const ArrayEncoding: Encoding<any[]> = {
 	match: (value: unknown) => Array.isArray(value),
 	encode: (array, encode) =>
@@ -176,8 +178,23 @@ export const ObjectLegacyEncoding: Encoding<object> = {
 	compare: ObjectEncoding.compare,
 }
 
-const MIN = Symbol("min")
-const MAX = Symbol("max")
+// MIN and MAX are useful for array prefix queries and stuff like that.
+export const MIN = Symbol("min")
+export const MAX = Symbol("max")
+
+export const MinEncoding: Encoding<null> = {
+	match: (value) => value === MIN,
+	encode: () => "",
+	decode: () => null,
+	compare: () => 0,
+}
+
+export const MaxEncoding: Encoding<null> = {
+	match: (value) => value === MAX,
+	encode: () => "",
+	decode: () => null,
+	compare: () => 0,
+}
 
 export class Codec {
 	constructor(public encodings: { [prefixByte: string]: Encoding<any> }) {
@@ -203,18 +220,8 @@ export class Codec {
 		throw new Error(`Missing encoding for value: ${value}`)
 	}
 
-	MIN = MIN
-	MAX = MAX
-	static MIN = MIN
-	static MAX = MAX
-
 	compare = (a: any, b: any): -1 | 0 | 1 => {
 		if (a === b) return 0
-		if (a === Codec.MIN) return -1
-		if (a === Codec.MAX) return 1
-		if (b === Codec.MIN) return 1
-		if (b === Codec.MAX) return -1
-
 		let ae: [string, Encoding<any>] | undefined
 		let be: [string, Encoding<any>] | undefined
 		for (const [prefix, encoding] of Object.entries(this.encodings)) {
@@ -234,11 +241,13 @@ export class Codec {
 
 export const jsonCodec = new Codec({
 	// Prefixes are based on legacy implementation.
-	// null < object < array < number < string < boolean
+	// MIN < null < object < array < number < string < boolean < MAX
+	"\x00": MinEncoding,
 	b: NullEncoding,
 	c: ObjectEncoding,
 	d: ArrayEncoding,
 	e: NumberEncoding,
 	f: StringEncoding,
 	g: BooleanEncoding,
+	"\xff": MaxEncoding,
 })

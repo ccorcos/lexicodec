@@ -5,6 +5,8 @@ import {
 	BooleanEncoding,
 	Codec,
 	Encoding,
+	MAX,
+	MIN,
 	NullEncoding,
 	NumberEncoding,
 	ObjectEncoding,
@@ -59,15 +61,9 @@ describe("jsonCodec", () => {
 				)
 			}
 
-			assert.deepStrictEqual(
-				jsonCodec.compare(jsonCodec.MIN, sortedValues[i]),
-				-1
-			)
+			assert.deepStrictEqual(jsonCodec.compare(MIN, sortedValues[i]), -1)
 
-			assert.deepStrictEqual(
-				jsonCodec.compare(jsonCodec.MAX, sortedValues[i]),
-				1
-			)
+			assert.deepStrictEqual(jsonCodec.compare(MAX, sortedValues[i]), 1)
 		}
 	})
 
@@ -124,10 +120,10 @@ describe("jsonCodec", () => {
 				)}) === compare(${[toString(a), toString(b)].join(", ")})`
 			)
 
-			assert.deepStrictEqual(jsonCodec.compare(jsonCodec.MIN, aTuple), -1)
-			assert.deepStrictEqual(jsonCodec.compare(jsonCodec.MIN, bTuple), -1)
-			assert.deepStrictEqual(jsonCodec.compare(jsonCodec.MAX, aTuple), 1)
-			assert.deepStrictEqual(jsonCodec.compare(jsonCodec.MAX, bTuple), 1)
+			assert.deepStrictEqual(jsonCodec.compare(MIN, aTuple), -1)
+			assert.deepStrictEqual(jsonCodec.compare(MIN, bTuple), -1)
+			assert.deepStrictEqual(jsonCodec.compare(MAX, aTuple), 1)
+			assert.deepStrictEqual(jsonCodec.compare(MAX, bTuple), 1)
 		}
 
 		for (let i = 0; i < sortedValues.length; i++) {
