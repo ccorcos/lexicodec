@@ -182,17 +182,17 @@ export const ObjectLegacyEncoding: Encoding<object> = {
 export const MIN = Symbol("min")
 export const MAX = Symbol("max")
 
-export const MinEncoding: Encoding<null> = {
+export const MinEncoding: Encoding<typeof MIN> = {
 	match: (value) => value === MIN,
 	encode: () => "",
-	decode: () => null,
+	decode: () => MIN,
 	compare: () => 0,
 }
 
-export const MaxEncoding: Encoding<null> = {
+export const MaxEncoding: Encoding<typeof MAX> = {
 	match: (value) => value === MAX,
 	encode: () => "",
-	decode: () => null,
+	decode: () => MAX,
 	compare: () => 0,
 }
 
