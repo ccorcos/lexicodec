@@ -49,6 +49,13 @@ const DateEncoding: Encoding<Date> = {
 	compare: (a, b) => (a > b ? 1 : b > a ? -1 : 0),
 }
 
+const FunctionEncoding: Encoding<(...args: any[]) => any> = {
+	match: (value: unknown) => typeof value === "function",
+	encode: (value) => value.toString(),
+	decode: (value) => new Function("return " + value)(),
+	compare: (a, b, cmp) => cmp(a.toString(), b.toString()),
+}
+
 const codec = new Codec({
 	b: NullEncoding,
 	c: ObjectEncoding,
@@ -57,10 +64,13 @@ const codec = new Codec({
 	f: StringEncoding,
 	g: BooleanEncoding,
 	h: DateEncoding
+	i: FunctionEncoding
 })
 
 codec.encode(new Date()) // => "h2023-11-29T18:44:54.942Z"
 codec.encode(["created", new Date()]) // => "dfcreated\u0000h2023-11-29T18:44:54.943Z\u0000"
+
+codec.encode((a, b) => a + b) // => "i(a, b) => a + b"
 ```
 
 Encodings also have a `compare` property so that you can compare values without having to serializing them. That way you can create in-memory abstractions that mimic the serialized behavior, useful for caching, etc.
@@ -68,3 +78,32 @@ Encodings also have a `compare` property so that you can compare values without 
 ```ts
 codec.compare(["jon", "smith"], ["jonathan", "smith"]) // => -1
 ```
+
+## Performance
+
+534ms just for bootup time...
+
+```
+❯❯❯ hyperfine --warmup 3 'npx tsx src/benchmark.ts json' 'npx tsx src/benchmark.ts codec'
+Benchmark 1: npx tsx src/benchmark.ts json
+  Time (mean ± σ):     774.1 ms ±   9.8 ms    [User: 902.0 ms, System: 193.9 ms]
+  Range (min … max):   762.3 ms … 795.0 ms    10 runs
+
+Benchmark 2: npx tsx src/benchmark.ts codec
+  Time (mean ± σ):      1.824 s ±  0.019 s    [User: 1.991 s, System: 0.208 s]
+  Range (min … max):    1.806 s …  1.869 s    10 runs
+
+
+const FunctionEncoding: Encoding<(...args: any[]) => any> = {
+	match: (value: unknown) => typeof value === "function",
+	encode: (value) => value.toString(),
+	decode: (value) => new Function("return " + value)(),
+	compare: (a, b, cmp) => cmp(a.toString(), b.toString()),
+}Summary
+
+  npx tsx src/benchmark.ts json ran
+    2.36 ± 0.04 times faster than npx tsx src/benchmark.ts codec
+```
+
+That means native JSON is 1.281 / .240 = 5.33x faster.
+
